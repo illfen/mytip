@@ -80,6 +80,11 @@
 #   --phi_range -45 45 --theta_range 45 75   \
 #   --workspace ./res_gaussion/colmap_doll/coarse_editing_res
 
+python tools/ply_to_bbox.py \
+  --input_ply_path /mnt/A/jiangzy/TIP-Editor/data/cup_corret_location.ply \
+  --output_path /mnt/A/jiangzy/TIP-Editor/data/3d_box/
+
+
 # # 4. Pixel-Level Image Refinement
 python train_refinement.py  \
   --eval_interval 20  \
