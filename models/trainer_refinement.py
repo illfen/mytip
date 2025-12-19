@@ -494,6 +494,15 @@ class Trainer_Refinement(object):
         if self.use_tensorboardX and self.local_rank == 0:
             self.writer.close()
 
+        # save final edited gaussian as .ply
+        try:
+            os.makedirs(self.ply_path, exist_ok=True)
+            out_ply = os.path.join(self.ply_path, f'edited_ep{self.epoch:04d}.ply')
+            self.log(f"[INFO] Saving edited gaussian to {out_ply}")
+            self.model.save_ply(out_ply)
+        except Exception as e:
+            self.log(f"[WARN] Failed to save edited ply: {e}")
+
     def evaluate(self, loader, name=None):
         self.use_tensorboardX, use_tensorboardX = False, self.use_tensorboardX
         self.evaluate_one_epoch(loader, name)
@@ -792,6 +801,19 @@ class Trainer_Refinement(object):
                 self.log("[WARN] No checkpoint found, model randomly initialized.")
                 return
 
+        # support loading .pth checkpoints (internal format) or .ply gaussian pointclouds
+        if checkpoint.endswith('.ply'):
+            # load gaussian ply into model
+            self.log(f"[INFO] Loading gaussian ply: {checkpoint}")
+            self.model.load_ply(checkpoint)
+            # ensure optimizer / training setup initialized
+            try:
+                self.model.training_setup(self.opt)
+            except Exception:
+                pass
+            self.log("[INFO] loaded gaussian ply as model.")
+            return
+
         checkpoint_dict = torch.load(checkpoint, map_location=self.device)
 
         self.model.load_state_dict(checkpoint_dict['model'])
@@ -810,6 +832,17 @@ class Trainer_Refinement(object):
             else:
                 self.log("[WARN] No checkpoint found, model randomly initialized.")
                 return
+
+        # support .ply initial gaussian inputs
+        if checkpoint.endswith('.ply'):
+            self.log(f"[INFO] Loading initial gaussian ply: {checkpoint}")
+            self.model_initial.load_ply(checkpoint)
+            try:
+                self.model_initial.training_setup(self.opt)
+            except Exception:
+                pass
+            self.log("[INFO] loaded initial gaussian ply as model_initial.")
+            return
 
         checkpoint_dict = torch.load(checkpoint, map_location=self.device)
         self.model_initial.load_state_dict(checkpoint_dict['model'])

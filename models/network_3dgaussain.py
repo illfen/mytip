@@ -402,12 +402,54 @@ class GSNetwork:
         scale = self._scaling.detach().cpu().numpy()
         rotation = self._rotation.detach().cpu().numpy()
 
-        dtype_full = [(attribute, 'f4') for attribute in self.construct_list_of_attributes()]
+        # Build dtype and attributes in the standard 3DGS order expected by tools like freeinsert/supersplat
+        # Order: x,y,z, nx,ny,nz, f_dc_0..2, f_rest_0..N, opacity, scale_0..2, rot_0..3
+        dtype_full = []
+        dtype_full += [("x", 'f4'), ("y", 'f4'), ("z", 'f4')]
+        dtype_full += [("nx", 'f4'), ("ny", 'f4'), ("nz", 'f4')]
+
+        # f_dc (3 channels)
+        for i in range(f_dc.shape[1]):
+            dtype_full += [(f"f_dc_{i}", 'f4')]
+
+        # f_rest (flattened across channels)
+        num_f_rest = f_rest.shape[1] if f_rest.ndim == 2 else 0
+        for i in range(num_f_rest):
+            dtype_full += [(f"f_rest_{i}", 'f4')]
+
+        # opacity
+        dtype_full += [("opacity", 'f4')]
+
+        # scale and rotation
+        for i in range(scale.shape[1]):
+            dtype_full += [(f"scale_{i}", 'f4')]
+        for i in range(rotation.shape[1]):
+            dtype_full += [(f"rot_{i}", 'f4')]
 
         elements = np.empty(xyz.shape[0], dtype=dtype_full)
-        # attributes = np.concatenate((xyz, normals, f_dc, f_rest, opacities, scale, rotation), axis=1)
-        attributes = np.concatenate((xyz, normals), axis=1)
-        elements[:] = list(map(tuple, attributes))
+
+        attrs = []
+        for i in range(xyz.shape[0]):
+            row = []
+            # xyz
+            row += [float(xyz[i, 0]), float(xyz[i, 1]), float(xyz[i, 2])]
+            # normals (if available, otherwise zeros)
+            row += [float(normals[i, 0]), float(normals[i, 1]), float(normals[i, 2])]
+            # f_dc
+            row += [float(x) for x in f_dc[i, :]]
+            # f_rest
+            if num_f_rest > 0:
+                row += [float(x) for x in f_rest[i, :]]
+            # opacity
+            row += [float(opacities[i, 0]) if opacities.ndim == 2 else float(opacities[i])]
+            # scale
+            row += [float(x) for x in scale[i, :]]
+            # rotation
+            row += [float(x) for x in rotation[i, :]]
+
+            attrs.append(tuple(row))
+
+        elements[:] = attrs
         el = PlyElement.describe(elements, 'vertex')
         PlyData([el]).write(path)
 

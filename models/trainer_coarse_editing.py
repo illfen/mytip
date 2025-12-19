@@ -752,6 +752,17 @@ class Trainer_SDS(object):
                 self.log("[WARN] No checkpoint found, model randomly initialized.")
                 return
 
+        # support .ply gaussian inputs as well as .pth checkpoints
+        if checkpoint.endswith('.ply'):
+            self.log(f"[INFO] Loading gaussian ply: {checkpoint}")
+            self.model.load_ply(checkpoint)
+            try:
+                self.model.training_setup(self.opt)
+            except Exception:
+                pass
+            self.log("[INFO] loaded gaussian ply as model.")
+            return
+
         checkpoint_dict = torch.load(checkpoint, map_location=self.device)
 
         self.model.load_state_dict(checkpoint_dict['model'])

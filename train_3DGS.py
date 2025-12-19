@@ -26,6 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('--theta_list', type=float, nargs='*', default=[0, 90])
     parser.add_argument('--bounding_box_path', type=str, default=None)
     parser.add_argument('--bbox_size_factor', type=float, default=1.0)
+    parser.add_argument('--bounding_box_scale', type=float, default=1.25, help='scale factor for bounding box')
 
 
     ### training options
